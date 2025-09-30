@@ -1,0 +1,49 @@
+﻿@using PV293WebApplication.Models
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="alert alert-danger d-flex align-items-center" role="alert">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     class="bi bi-exclamation-triangle me-2" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M7.938 2.016a.13.13 0 0 1 .125 0l6.857 3.94c.11.064.18.183.18.312v7.362a.36.36 0 0 1-.36.36H1.26a.36.36 0 0 1-.36-.36V6.268c0-.129.07-.248.18-.312l6.857-3.94zM8 5a.905.905 0 0 0-.9.9l.23 3.6a.67.67 0 0 0 1.34 0L8.9 5.9A.905.905 0 0 0 8 5zm0 6.2a1 1 0 1 0 0 2 1 1 0 0 0 0-2z" />
+                </svg>
+                <div>
+                    <h1 class="h4 mb-0">An error occurred while processing your request.</h1>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (Model.ShowRequestId)
+                    {
+                        <p class="mb-1"><strong>Request ID:</strong></p>
+                        <p><code>@Model.RequestId</code></p>
+                        <hr />
+                    }
+
+                    <h2 class="h5">Development Mode</h2>
+                    <p class="text-muted mb-2">
+                        Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
+                    </p>
+                    <div class="alert alert-warning">
+                        <strong>Do not enable Development in production.</strong> It can expose sensitive exception details to end users.
+                    </div>
+                    <p class="mb-0">
+                        For local debugging, set <code>ASPNETCORE_ENVIRONMENT</code> to <strong>Development</strong> and restart the app.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+                    Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

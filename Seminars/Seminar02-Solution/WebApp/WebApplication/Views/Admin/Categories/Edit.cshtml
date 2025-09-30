@@ -1,0 +1,55 @@
+﻿@model DAL.Entities.Category
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Edit Category";
+}
+
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-controller="Categories" asp-action="Index">Categories</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Edit</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h1 class="h5 mb-0">Edit Category</h1>
+        </div>
+        <div class="card-body">
+            <form asp-area="Admin" asp-controller="Categories" asp-action="Edit" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Description" class="form-label"></label>
+                    <input asp-for="Description" class="form-control" />
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Save
+                    </button>
+                    <a class="btn btn-outline-secondary"
+                       asp-area="Admin" asp-controller="Categories" asp-action="Index">
+                        Back to list
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
