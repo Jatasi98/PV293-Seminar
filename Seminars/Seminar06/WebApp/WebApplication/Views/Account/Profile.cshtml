@@ -1,0 +1,73 @@
+﻿@model ProfileViewModel
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm mt-4">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h1 class="h4 mb-0">My Profile</h1>
+                    <a class="btn btn-sm btn-outline-secondary" asp-controller="Order" asp-action="Index">
+                        <i class="bi bi-receipt"></i> My Orders
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.StatusMessage != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle me-1"></i> @ViewBag.StatusMessage
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Profile" method="post" novalidate>
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Username</label>
+                                <input value="@Model.UserName" class="form-control" disabled />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input value="@Model.Email" class="form-control" disabled />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="FirstName" class="form-label"></label>
+                                <input asp-for="FirstName" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="LastName" class="form-label"></label>
+                                <input asp-for="LastName" class="form-control" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="PhoneNumber" class="form-label"></label>
+                                <input asp-for="PhoneNumber" class="form-control" />
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> Save
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr />
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

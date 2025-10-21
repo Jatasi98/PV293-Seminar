@@ -1,0 +1,18 @@
+﻿@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Access denied";
+}
+
+<div class="container">
+    <div class="alert alert-danger d-flex align-items-center mt-3" role="alert">
+        <i class="bi bi-shield-lock me-2"></i>
+        <div>
+            <h1 class="h4 mb-1">Access denied</h1>
+            <p class="mb-0">You do not have permission to view this resource.</p>
+        </div>
+    </div>
+
+    <a class="btn btn-outline-secondary mt-2" asp-controller="Home" asp-action="Index">
+        <i class="bi bi-arrow-left"></i> Back to Home
+    </a>
+</div>

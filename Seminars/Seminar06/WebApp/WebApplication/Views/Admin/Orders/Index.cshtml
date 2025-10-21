@@ -1,0 +1,62 @@
+﻿@model IEnumerable<OrderDTO>
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Orders";
+}
+
+<div class="container">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 mb-0">Orders</h1>
+        <a class="btn btn-primary" asp-area="Admin" asp-controller="Orders" asp-action="Create">
+            <i class="bi bi-plus-lg"></i> Create Order
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">No orders yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive shadow-sm">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:80px;">#</th>
+                        <th>Customer</th>
+                        <th>Order Date</th>
+                        <th class="text-end" style="width:160px;">Total</th>
+                        <th class="text-end" style="width:260px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model)
+                    {
+                        <tr>
+                            <td class="text-muted">#@o.Id</td>
+                            <td>@(o.Customer != null ? o.Customer.Email : o.CustomerId.ToString())</td>
+                            <td class="text-end">@o.Total.ToString("C")</td>
+                            <td class="text-end">
+                                <div class="btn-group" role="group">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       asp-area="Admin" asp-controller="Orders" asp-action="Details" asp-route-id="@o.Id">
+                                        <i class="bi bi-eye"></i> Details
+                                    </a>
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-area="Admin" asp-controller="Orders" asp-action="Edit" asp-route-id="@o.Id">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                    <a class="btn btn-sm btn-outline-danger"
+                                       asp-area="Admin" asp-controller="Orders" asp-action="Delete" asp-route-id="@o.Id">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

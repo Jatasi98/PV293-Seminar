@@ -1,0 +1,76 @@
+﻿using BL.DTOs;
+using BL.Services;
+using Microsoft.AspNetCore.Mvc;
+using PV293WebApplication.Helpers;
+using PV293WebApplication.Models;
+using Shared;
+
+namespace PV293WebApplication.Controllers;
+
+public class CheckoutController : Controller
+{
+    private readonly ICheckoutService _checkoutService;
+
+    public CheckoutController(ICheckoutService checkoutService)
+    {
+        _checkoutService = checkoutService;
+    }
+
+    [HttpGet]
+    public IActionResult Index()
+    {
+        var cart = HttpContext.Session.GetObject<CartViewModel>(Constants.CartKey)
+            ?? new CartViewModel();
+
+        if (cart.Items.Count == 0)
+        {
+            return RedirectToAction("Index", "Cart");
+        }
+
+        var model = new CheckoutViewModel { Cart = cart };
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PlaceOrder(CheckoutViewModel vm)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View("Index", vm);
+        }
+
+        var newOrder = new PlaceOrderDTO()
+        {
+            Address1 = vm.Address1,
+            Address2 = vm.Address2,
+            Cart = new() { Items = vm.Cart.Items },
+            City = vm.City,
+            Country = vm.Country,
+            FullName = vm.FullName,
+            Zip = vm.Zip,
+        };
+
+        var createdOrderID = await _checkoutService.PlaceOrder(newOrder, User);
+
+        if (createdOrderID != null)
+        {
+            HttpContext.Session.Remove(Constants.CartKey);
+        }
+
+        return RedirectToAction(nameof(Confirmation), new { id = createdOrderID });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Confirmation(int id)
+    {
+        var createdOrder = await _checkoutService.Confirmation(id);
+
+        if (createdOrder == null)
+        {
+            return NotFound();
+        }
+
+        return View(createdOrder);
+    }
+}

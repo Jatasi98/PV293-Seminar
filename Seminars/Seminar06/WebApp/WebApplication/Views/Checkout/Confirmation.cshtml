@@ -1,0 +1,82 @@
+﻿@model OrderViewModel
+
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Order Confirmation";
+}
+
+<div class="container">
+    <div class="alert alert-success d-flex align-items-center" role="alert">
+        <i class="bi bi-check-circle me-2"></i>
+        <div>
+            <h1 class="h4 mb-0">Thank you!</h1>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-4">
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <i class="bi bi-geo-alt"></i> Shipping to
+                </div>
+                <div class="card-body">
+                    <div class="fw-semibold">@Model.FullName</div>
+                    <div>
+                        @Model.Address1
+                        @if (!string.IsNullOrWhiteSpace(Model.Address2))
+                        {
+                            <text>, @Model.Address2</text>
+                        }
+                    </div>
+                    <div>@Model.City, @Model.Zip</div>
+                    <div>@Model.Country</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <i class="bi bi-bag"></i> Items
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-end">Unit</th>
+                                    <th class="text-end">Line</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var i in Model.Items)
+                                {
+                                    <tr>
+                                        <td>@i.ProductName</td>
+                                        <td class="text-center">@i.Quantity</td>
+                                        <td class="text-end">@i.UnitPrice.ToString("C")</td>
+                                        <td class="text-end">@((i.UnitPrice * i.Quantity).ToString("C"))</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td colspan="3" class="text-end">Total:</td>
+                                    <td class="text-end">@Model.Total.ToString("C")</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a asp-controller="Catalog" asp-action="Index" class="btn btn-primary">
+            <i class="bi bi-shop"></i> Continue shopping
+        </a>
+    </div>
+</div>
