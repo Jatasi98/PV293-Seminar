@@ -7,5 +7,5 @@ namespace BL.Services;
 public interface ICheckoutService
 {
     Task<int?> PlaceOrder(PlaceOrderDTO orderToCreate, ClaimsPrincipal user);
-    Task<Order> Confirmation(int id);
+    Task<OrderDTO> Confirmation(int id);
 }

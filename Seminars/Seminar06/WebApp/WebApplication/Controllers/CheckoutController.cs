@@ -71,6 +71,18 @@ public class CheckoutController : Controller
             return NotFound();
         }
 
-        return View(createdOrder);
+        var orderViewModel = new OrderViewModel()
+        {
+            Id = createdOrder.Id,
+            Total = createdOrder.Total,
+            FullName = createdOrder.FullName,
+            Address1 = createdOrder.Address1,
+            Address2 = createdOrder.Address2,
+            City = createdOrder.City,
+            Zip = createdOrder.Zip,
+            Country = createdOrder.Country
+        };
+
+        return View(orderViewModel);
     }
 }

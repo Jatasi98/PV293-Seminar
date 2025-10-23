@@ -88,11 +88,23 @@ public class CheckoutService : ICheckoutService
         return order.Id;
     }
 
-    public async Task<Order?> Confirmation(int id)
+    public async Task<OrderDTO?> Confirmation(int id)
     {
         var order = await _db.Orders
             .Include(o => o.Items)
             .AsNoTracking()
+            .Select(o => new OrderDTO
+            {
+                Id = o.Id,
+                Total = o.Total,
+                FullName = o.FullName,
+                Address1 = o.Address1,
+                Address2 = o.Address2,
+                City = o.City,
+                Zip = o.Zip,
+                Country = o.Country,
+                CustomerId = o.CustomerId
+            })
             .FirstOrDefaultAsync(o => o.Id == id);
 
         return order;
