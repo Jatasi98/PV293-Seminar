@@ -1,0 +1,106 @@
+﻿using Application.DTOs;
+using Application.Services.Interfaces;
+using Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace Infrastructure.Services;
+
+public class CheckoutService : ICheckoutService
+{
+    private readonly WebAppDbContext _db;
+
+    public CheckoutService(WebAppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<int?> PlaceOrder(PlaceOrderDTO orderToCreate, CustomerDTO user)
+    {
+        var customerId = await _db.Customers
+            .Where(x => x.Id == user.Id)
+            .Select(x => x.Id)
+            .FirstOrDefaultAsync();
+
+        if (customerId == 0)
+        {
+            return null;
+        }
+
+        var cartEntity = await _db.Carts
+            .Include(c => c.Items)
+            .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+        if (cartEntity == null || !cartEntity.Items.Any())
+        {
+            return null;
+        }
+
+        var productIds = cartEntity.Items.Select(i => i.ProductId).ToList();
+        var products = await _db.Products
+            .AsNoTracking()
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        foreach (var item in cartEntity.Items)
+        {
+            if (!products.TryGetValue(item.ProductId, out var product))
+            {
+                return null;
+            }
+
+            item.UnitPrice = product.Price;
+        }
+
+        var subtotal = cartEntity.Items.Sum(i => i.UnitPrice * i.Quantity);
+        var shipping = cartEntity.Items.Count > 0 ? 5.00m : 0m;
+        var total = subtotal + shipping;
+
+        var order = new Order
+        {
+            CustomerId = customerId,
+            CreatedOnUTC = DateTime.UtcNow,
+            Total = total,
+            FullName = orderToCreate.FullName,
+            Address1 = orderToCreate.Address1,
+            Address2 = orderToCreate.Address2,
+            City = orderToCreate.City,
+            Zip = orderToCreate.Zip,
+            Country = orderToCreate.Country,
+            Items = [.. cartEntity.Items.Select(i => new OrderItem
+            {
+                ProductId = i.ProductId,
+                UnitPrice = i.UnitPrice,
+                Quantity = i.Quantity
+            })]
+        };
+
+        _db.Orders.Add(order);
+        _db.Carts.Remove(cartEntity);
+
+        await _db.SaveChangesAsync();
+
+        return order.Id;
+    }
+
+    public async Task<OrderDTO?> Confirmation(int id)
+    {
+        var order = await _db.Orders
+            .Include(o => o.Items)
+            .AsNoTracking()
+            .Select(o => new OrderDTO
+            {
+                Id = o.Id,
+                Total = o.Total,
+                FullName = o.FullName,
+                Address1 = o.Address1,
+                Address2 = o.Address2,
+                City = o.City,
+                Zip = o.Zip,
+                Country = o.Country,
+                CustomerId = o.CustomerId
+            })
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        return order;
+    }
+}
