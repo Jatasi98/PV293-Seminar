@@ -1,6 +1,8 @@
-﻿namespace VerticalSlice.Domain.Events;
+﻿using MediatR;
 
-public class ProductAddedToCartLoggingHandler(ILogger<ProductAddedToCartLoggingHandler> logger)
+namespace VerticalSlice.Domain.Events;
+
+public class ProductAddedToCartLoggingHandler(ILogger<ProductAddedToCartLoggingHandler> logger) : INotificationHandler<ProductAddedToCartEvent>
 {
     private readonly ILogger<ProductAddedToCartLoggingHandler> logger = logger;
 
