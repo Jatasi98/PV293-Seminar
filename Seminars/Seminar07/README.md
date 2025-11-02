@@ -8,6 +8,8 @@ Today, we will continue with the task from last week. If you have already comple
 
 We will focus on modifying our application to operate using the Mediator pattern. To achieve this, we will use the following library: [MediatR](https://github.com/LuckyPennySoftware/MediatR). 
 
+Your task will be to modify a part of your existing application to use MediatR. You may either reintroduce the `Create Product` functionality into our application or select another feature and implement it with MediatR. Ensure that everything remains fully functional after your changes.
+
 Using the NuGet Package Console, we will install MediatR:
 
 ```bash
@@ -15,11 +17,20 @@ dotnet add package MediatR
 dotnet add package MediatR.Extensions.Microsoft.DependencyInjection
 ```
 
-Next, we will modify the Program.cs file to enable the use of the MediatR library.
+Next, we will modify the Program.cs file to enable the use of the MediatR library. To simplify registration, add the following class to the Application layer. It will help you obtain the required assembly.
+
+### AssemblyMarker.cs
+
+```cs
+public sealed class AssemblyMarker { }
+```
 
 ```cs
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(Application.AssemblyMarker).Assembly));
 ```
 
 If the installation is successful, we will refactor one request in our Clean Architecture application (either a Command or a Query) so that we no longer rely on direct calls through the business layer and its services. Before changing any existing code, please prepare the following components.
@@ -57,6 +68,11 @@ public sealed class AddProductHandler : IRequestHandler<AddProductCommand, Guid>
 
 Now that we have prepared our `Request` and `Handler`, let us apply them in the `Presentation layer`. In the controller responsible for adding new products, the corresponding method should be added or refactored as follows.
 
+```cs
+// Defines a handler interface that specifies the type of input it processes and the type of output it returns from the Handle method.
+public interface IRequestHandler<Input, Output>
+```
+
 ### ProductAdminController.cs
 
 ```cs
@@ -83,14 +99,13 @@ public ProductAdminController : AdminController
 
 If you have completed all the steps correctly, the application should still run without any noticeable changes from the user’s perspective. Thanks to this refactoring, you have cleanly separated the Presentation layer from the business logic.
 
-Your task is to modify a part of your existing application to use MediatR. You may either reintroduce the `Create Product` functionality into our application or select another feature and implement it with MediatR. Ensure that everything remains fully functional after your changes.
-
 ## Task 02: Validators in MediatR
 
 Last time, we created a validator not bound to any command or query, requiring us to instantiate and invoke it manually. Now, we will implement a validator that runs automatically once defined, without any additional wiring on your part. First, ensure `FluentValidation` is installed in the project where you intend to use the validator. If it is not already present, install it via the NuGet Package Manager or the Package Manager Console.
 
 ```bash
 dotnet add package FluentValidation
+dotnet add package FluentValidation.DependencyInjectionExtensions
 ```
 
 ### AddProductCommandValidator.cs 
@@ -107,7 +122,7 @@ public sealed class AddBookCommandValidator : AbstractValidator<AddProductComman
 
         RuleFor(x => x.Price)
             .GreaterThan(0).WithMessage("Price must be greater than zero.")
-            .ScalePrecision(2, 18).WithMessage("Price must have at most 2 decimal places.");
+            .PrecisionScale(18, 2).WithMessage("Price must have at most 2 decimal places.");
     }
 
     private static bool BeAlphanumeric(string title) =>
@@ -155,16 +170,9 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
 }
 ```
 
-Before we verify that everything has been prepared correctly, you must register the ValidationBehavior in Program.cs. To simplify this registration, add the following class to the Application layer. It will help you obtain the required assembly.
-
-### AssemblyMarker.cs
+Before we verify that everything has been prepared correctly, you must register the ValidationBehavior in Program.cs. 
 
 ```cs
-public sealed class AssemblyMarker { }
-```
-
-```cs
-// Pro pouziti budete potrebovat nuget `FluentValidation.DependencyInjectionExtensions`
 builder.Services.AddValidatorsFromAssembly(typeof(Application.AssemblyMarker).Assembly);
 
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
