@@ -44,6 +44,10 @@ In the main API project, reference the Orders module.
 
 Next, define a command that represents the creation of an order. Since the cart is currently held in the **session context**, we will include all cart items as part of the command payload.
 
+```
+Tip: For how to get shopping cart try to look for 'CartControllerBase'
+```
+
 **CreateOrderCommand.cs**
 
 ```csharp
