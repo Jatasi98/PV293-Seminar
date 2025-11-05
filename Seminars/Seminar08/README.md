@@ -15,7 +15,7 @@ Now, we will modularize the solution by splitting it into independent **feature 
 
 ### Step 1: Introducing the Orders Module
 
-We will reintroduce the **Orders** functionality as an independent **module**. A module should be self-contained, owning its data, logic, and API contracts. However, during this first step, we will **reuse our existing `DbContext`** from the current solution. The module will not be fully independent yet, but it will allow us to gradually decouple its persistence later.
+We will reintroduce the **Orders** functionality as an independent **module**. A module should be self-contained, owning its data, logic, and API contracts. However, during this first step, we will **reuse our existing `DbContext`** from the current solution. The module will not be fully independent yet, but it will allow us to decouple its persistence later gradually.
 
 Create a new project in your solution called 'Module.Orders'
 
@@ -42,7 +42,7 @@ Module.Orders/
 
 In the main API project, reference the Orders module.
 
-Next, define a command that represents an order being created. Since the cart is currently held in the **session context**, we will include all cart items as part of the command payload.
+Next, define a command that represents the creation of an order. Since the cart is currently held in the **session context**, we will include all cart items as part of the command payload.
 
 **CreateOrderCommand.cs**
 
@@ -60,9 +60,9 @@ public sealed record CartItemDTO(
 );
 ```
 
-This command will be passed from the controller of main e-commerce app to the application layer of module. The handler will take these items, validate them, and persist the order using the shared DbContext.
+This command will be passed from the controller of the main e-commerce app to the application layer of the module. The handler will take these items, validate them, and persist the order using the shared DbContext.
 
-Next, expose the Orders module through a controller, for example `OrdersController.cs` inside your web project:
+Next, expose the Orders module through a controller, for example, `OrdersController.cs` inside your web project:
 
 ```csharp
 [ApiController]
@@ -89,7 +89,7 @@ At this point, your Orders functionality is encapsulated within its own module, 
 
 ## Task 02: Messaging and RabbitMQ
 
-Before introducing `Wolverine`, we will first explore **messaging concepts** using **RabbitMQ** directly. This will help you understand how message queues work under the hood.
+Before introducing `Wolverine`, we will first explore **messaging concepts** using **RabbitMQ** directly. This will help you understand how message queues work internally.
 
 ### Step 1: Running RabbitMQ
 
@@ -105,7 +105,11 @@ Default credentials: **guest / guest**
 
 ### Step 2: Sending and Receiving a Message
 
-We will add a simple demonstration of sending and receiving a message directly through RabbitMQ.
+We will add a simple demonstration of sending and receiving a message directly through RabbitMQ. For that we will need to install RabbitMQ nuget for .Net.
+
+```bash
+dotnet add package RabbitMQ.Client
+```
 
 Add the following API controller to your main application:
 
@@ -115,18 +119,18 @@ Add the following API controller to your main application:
 public sealed class MessagingController : ControllerBase
 {
     [HttpPost("send")]
-    public IActionResult SendMessage(string text)
+    public async Task<IActionResult> SendMessage(string text)
     {
         var factory = new ConnectionFactory() { HostName = "localhost" };
-        using var connection = factory.CreateConnection();
-        using var channel = connection.CreateModel();
+        using var connection = await factory.CreateConnectionAsync();
+        using var channel = await connection.CreateChannelAsync();
 
-        channel.QueueDeclare(queue: "seminar-queue",
+        await channel.QueueDeclareAsync(queue: "seminar-queue",
             durable: false, exclusive: false, autoDelete: false, arguments: null);
 
         var body = Encoding.UTF8.GetBytes(text);
 
-        channel.BasicPublish(exchange: string.Empty, routingKey: "seminar-queue", basicProperties: null, body: body);
+        await channel.BasicPublishAsync(string.Empty, "seminar-queue", false , body);
 
         return Ok($"Message '{text}' sent to queue.");
     }
@@ -137,20 +141,23 @@ Then, add a simple console or background task in the same project that consumes 
 
 ```csharp
 var factory = new ConnectionFactory() { HostName = "localhost" };
-using var connection = factory.CreateConnection();
-using var channel = connection.CreateModel();
+using var connection = await factory.CreateConnectionAsync();
+using var channel = await connection.CreateChannelAsync();
 
-channel.QueueDeclare(queue: "seminar-queue", durable: false, exclusive: false, autoDelete: false, arguments: null);
+await channel.QueueDeclareAsync(queue: "seminar-queue", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
-var consumer = new EventingBasicConsumer(channel);
-consumer.Received += (model, ea) =>
+var consumer = new AsyncEventingBasicConsumer(channel);
+consumer.ReceivedAsync += async (model, ea) =>
 {
     var body = ea.Body.ToArray();
     var message = Encoding.UTF8.GetString(body);
+
     Console.WriteLine($"Received: {message}");
+
+    await channel.BasicAckAsync(ea.DeliveryTag, false);
 };
 
-channel.BasicConsume(queue: "seminar-queue", autoAck: true, consumer: consumer);
+await channel.BasicConsumeAsync(queue: "seminar-queue", autoAck: true, consumer: consumer);
 Console.ReadLine();
 ```
 
@@ -236,4 +243,4 @@ public sealed class WolverineController : ControllerBase
 }
 ```
 
-At this stage, Wolverine takes care of managing connections, exchanges, and message routing automatically, making it a much cleaner approach than manual RabbitMQ integration.
+At this stage, Wolverine automatically manages connections, exchanges, and message routing, providing a much cleaner approach than manual RabbitMQ integration.
