@@ -49,19 +49,27 @@ Tip: For how to get shopping cart try to look for 'CartControllerBase'
 ```
 
 **CreateOrderCommand.cs**
-
 ```csharp
-public sealed record CreateOrderCommand(
-    Customer Customer,
-    List<CartItemDTO> Items
-) : IRequest<int>;
+public sealed record CreateOrderCommand(OrderCustomerDTO Customer, List<OrderItemDTO> Items) : IRequest<int>;
+```
 
-public sealed record CartItemDTO(
-    int ProductId,
-    string ProductName,
-    int Quantity,
-    decimal UnitPrice
-);
+**OrderItemDTO.cs**
+```cs
+public sealed record OrderItemDTO
+{
+    public int ProductId { get; set; }
+    public string ProductName { get; set; }
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+}
+```
+
+**OrderCustomerDTO.cs**
+```cs
+public sealed record OrderCustomerDTO
+{
+    public int Id { get; set; }
+}
 ```
 
 This command will be passed from the controller of the main e-commerce app to the application layer of the module. The handler will take these items, validate them, and persist the order using the shared DbContext.
@@ -71,7 +79,7 @@ Next, expose the Orders module through a controller, for example, `OrdersControl
 ```csharp
 [ApiController]
 [Route("api/[controller]")]
-public sealed class OrdersController(IMediator mediator) : ControllerBase
+public sealed class OrdersController(IMediator mediator) : ???
 {
     private readonly IMediator _mediator = mediator;
 
@@ -178,9 +186,9 @@ We will use the same running Docker RabbitMQ instance from the previous step.
 Add Wolverine to your main Web project:
 
 ```bash
-dotnet add package Wolverine
-dotnet add package Wolverine.RabbitMQ
-dotnet add package Wolverine.FluentValidation
+dotnet add package WolverineFx
+dotnet add package WolverineFx.RabbitMQ
+dotnet add package WolverineFx.FluentValidation
 ```
 
 ### Step 2: Configuring Wolverine
