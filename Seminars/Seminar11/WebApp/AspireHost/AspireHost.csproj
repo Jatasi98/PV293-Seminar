@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="9.5.0" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>94968943-dcb8-4aec-bd7e-6522d51f2b86</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.0" />
+    <PackageReference Include="Aspire.Hosting.MongoDB" Version="9.5.2" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="9.5.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SearchService\SearchService.csproj" />
+    <ProjectReference Include="..\VerticalSlice\VerticalSlice.csproj" />
+  </ItemGroup>
+
+</Project>
