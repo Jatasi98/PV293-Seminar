@@ -6,39 +6,7 @@ This configuration will provide complete visibility into system health, performa
 
 ---
 
-## Task 01: Grafana Integration with Aspire
-
-Grafana is a monitoring and visualization tool that enables us to track application metrics in real time.
-Using Aspire, we can automatically provision and configure Grafana alongside our existing services.
-Grafana connects to Aspire’s built-in Prometheus endpoint, which collects metrics from all running applications.
-
-### Step 01: Add Grafana to the Aspire Orchestrator
-
-Open the Orchestrator project and modify the `Program.cs` file to include a Grafana container.
-Grafana will automatically connect to the metrics exposed by Aspire.
-
-```cs
-// Add Grafana
-var grafana = builder.AddContainer("grafana", "grafana/grafana:10.4.1")
-    .WithPort(3000)
-    .WithEnvironment("GF_SECURITY_ADMIN_USER", "admin")
-    .WithEnvironment("GF_SECURITY_ADMIN_PASSWORD", "admin")
-    .WithEnvironment("GF_USERS_ALLOW_SIGN_UP", "false");
-```
-
-Once started, access Grafana at [http://localhost:3000](http://localhost:3000) with credentials:
-
-```
-Username: admin
-Password: admin
-```
-
-Aspire exposes a Prometheus-compatible endpoint by default, so Grafana automatically retrieves metrics from all connected projects.
-This allows you to view live dashboards showing request counts, latency, and memory usage across your applications.
-
----
-
-## Task 02: OpenTelemetry Integration
+## Task 01: OpenTelemetry Integration
 
 **OpenTelemetry enables distributed tracing and metrics collection across services.**
 By connecting the Main Application and SearchService to the Aspire telemetry pipeline, we can visualize the full request flow through RabbitMQ, APIs, and databases.
@@ -53,140 +21,200 @@ dotnet add package OpenTelemetry.Extensions.Hosting
 dotnet add package OpenTelemetry.Exporter.OpenTelemetryProtocol
 dotnet add package OpenTelemetry.Instrumentation.AspNetCore
 dotnet add package OpenTelemetry.Instrumentation.Http
-dotnet add package OpenTelemetry.Instrumentation.SqlClient
 ```
 
 ### Step 02: Configure OpenTelemetry in Program.cs
 
-In each project, register tracing and metrics before building the application:
+In each project, register and configure tracing and metrics prior to building the application.
+
+**WebApp - VerticalSlice**
 
 ```cs
+// Extend UseWolverine with following
+builder.Host.UseWolverine(opts =>
+{
+    opts.ServiceName = "web-app";
+
+    //...
+}
+
+// OpenTelemtry
 builder.Services.AddOpenTelemetry()
-    .WithTracing(tracer =>
+    .WithMetrics(m =>
     {
-        tracer
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddSource("MainApp") // or "SearchService" depending on project
-            .AddOtlpExporter(opt =>
-            {
-                opt.Endpoint = new Uri("http://localhost:4317");
-            });
+        m.AddAspNetCoreInstrumentation();
+        m.AddMeter("Microsoft.AspNetCore.Hosting");
+        m.AddMeter("Microsoft.AspNetCore.Server.Kestrel");
+        m.AddMeter("System.Net.Http");
     })
-    .WithMetrics(meter =>
+    .WithTracing(t =>
     {
-        meter.AddAspNetCoreInstrumentation();
-        meter.AddRuntimeInstrumentation();
-        meter.AddHttpClientInstrumentation();
-    });
+        t.AddSource("Wolverine");
+
+        t.AddAspNetCoreInstrumentation();
+        t.AddHttpClientInstrumentation();
+    })
+    .ConfigureResource(rb => rb.AddService("web-app"));
+
+builder.Services.Configure<OpenTelemetryLoggerOptions>(x =>
+{
+    x.AddOtlpExporter();
+});
+
+builder.Services.ConfigureOpenTelemetryMeterProvider(x =>
+{
+    x.AddOtlpExporter();
+});
+
+builder.Services.ConfigureOpenTelemetryTracerProvider(x =>
+{
+    x.AddOtlpExporter();
+});
 ```
 
-### Step 03: Aspire Integration
+**SearchService**
 
-Aspire automatically configures an OpenTelemetry Collector that aggregates metrics and traces.
-No additional collector setup is needed both MainApp and SearchService will send data through Aspire’s pipeline.
-
-Run the Orchestrator and trigger requests across services.
-You will see distributed traces showing the flow between MainApp and SearchService.
-These traces can be visualized directly in Grafana if the **Tempo** data source is enabled.
-
----
-
-## Task 03: Centralized Logging with Serilog and Elasticsearch
-
-Logging is an essential part of observability.
-We will configure structured, centralized logging using **Serilog** and **Elasticsearch**, and visualize logs in **Kibana**.
-
-### Step 01: Add Elasticsearch and Kibana to Aspire
-
-Modify your Orchestrator to include Elasticsearch and Kibana containers:
-
-```cs
-// Elasticsearch
-var elastic = builder.AddContainer("elasticsearch", "docker.elastic.co/elasticsearch/elasticsearch:8.15.0")
-    .WithEnvironment("discovery.type", "single-node")
-    .WithEnvironment("xpack.security.enabled", "false")
-    .WithPort(9200);
-
-// Kibana
-var kibana = builder.AddContainer("kibana", "docker.elastic.co/kibana/kibana:8.15.0")
-    .WithEnvironment("ELASTICSEARCH_HOSTS", "http://elasticsearch:9200")
-    .WithPort(5601);
-```
-
-After restarting Aspire, Elasticsearch will be available at `http://localhost:9200` and Kibana at [http://localhost:5601](http://localhost:5601).
-
----
-
-### Step 02: Install and Configure Serilog
-
-Install Serilog packages in both projects:
+For the SearchService project, enable MongoDB tracking by installing and configuring the following NuGet package.
 
 ```bash
-dotnet add package Serilog.AspNetCore
-dotnet add package Serilog.Sinks.Console
-dotnet add package Serilog.Sinks.Elasticsearch
+dotnet add package MongoDB.Driver.Core.Extensions.DiagnosticSources
 ```
-
-Configure Serilog before building the application:
 
 ```cs
-using Serilog;
-using Serilog.Sinks.Elasticsearch;
-
-Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri("http://localhost:9200"))
-    {
-        AutoRegisterTemplate = true,
-        IndexFormat = "seminar-logs-{0:yyyy.MM.dd}"
-    })
-    .CreateLogger();
-
-builder.Host.UseSerilog();
-```
-
-Logs are automatically shipped to Elasticsearch and stored in daily indexes.
-
----
-
-### Step 03: Validate Log Collection
-
-Run the Orchestrator:
-
-Open Kibana at [http://localhost:5601](http://localhost:5601) and select the `seminar-logs-*` index pattern under **Discover**.
-Trigger actions in MainApp (e.g., create a product or execute a search query).
-Structured log entries will appear in real time.
-
-Example document in Elasticsearch:
-
-```json
+// IMongoClient
+builder.Services.AddSingleton<IMongoClient>(sp =>
 {
-  "@timestamp": "2025-11-03T12:45:29.232Z",
-  "level": "Information",
-  "message": "Product created: ProductId=42, Name=\"Keyboard\"",
-  "service": "MainApp",
-  "traceId": "b7f29f9f3c4a4fd98c07aefc3cc47e42"
+    var opts = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
+
+    var settings = MongoClientSettings.FromConnectionString(opts.ConnectionString);
+
+    settings.ClusterConfigurator = cb =>
+        cb.Subscribe(new DiagnosticsActivityEventSubscriber());
+
+    return new MongoClient(settings);
+});
+
+
+builder.Host.UseWolverine(opts =>
+{
+    opts.ServiceName = "search-service";
+
+    //...
 }
+
+// OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m =>
+    {
+        m.AddAspNetCoreInstrumentation();
+        m.AddMeter("Microsoft.AspNetCore.Hosting");
+        m.AddMeter("Microsoft.AspNetCore.Server.Kestrel");
+        m.AddMeter("System.Net.Http");
+    })
+    .WithTracing(t =>
+    {
+        t.AddSource("MongoDB.Driver.Core.Extensions.DiagnosticSources");
+        t.AddSource("Wolverine");
+
+        t.AddAspNetCoreInstrumentation();
+        t.AddHttpClientInstrumentation();
+    })
+    .ConfigureResource(rb => rb.AddService("search-service"));
+
+builder.Services.Configure<OpenTelemetryLoggerOptions>(x =>
+{
+    x.AddOtlpExporter();
+});
+
+builder.Services.ConfigureOpenTelemetryMeterProvider(x =>
+{
+    x.AddOtlpExporter();
+});
+
+builder.Services.ConfigureOpenTelemetryTracerProvider(x =>
+{
+    x.AddOtlpExporter();
+});
 ```
+
+Validate that all incoming requests are observable within the application and that their end-to-end traversal through the solution can be traced.
+
+## Task 02: Prometheus and Grafana
+
+First, add a new NuGet package that enables data exposure for Prometheus. For now, focus only on the VerticalSlice component of the application.
+
+```bash
+dotnet add package OpenTelemetry.Exporter.Prometheus.AspNetCore
+```
+
+Also, create the following file in the AspireHost project.
+
+**prometheus.yml**
+```yml
+scrape_configs:
+  - job_name: scrap-service
+    scrape_interval: 5s
+    static_configs:
+      - targets: [host.docker.internal:5271]
+```
+
+Finally, update the AppHost.cs file with the following changes.
+
+```cs
+builder.AddContainer(name: "prometheus", image: "prom/prometheus:v2.54.1")
+    .WithBindMount("./prometheus.yml", "/etc/prometheus/prometheus.yml")
+    .WithEndpoint(targetPort: 9090, port: 9090, scheme: "http");
+```
+
+Launch the application and inspect the exported metrics in the Prometheus UI. Summarize the insights and actions now enabled by the collected data.
+
+Utilize Grafana, a monitoring and visualization tool, to track application metrics in real-time. Using Aspire, provision and configure Grafana automatically alongside the existing services. 
+
+Configure Grafana to use Aspire’s built-in Prometheus endpoint as a data source, leveraging metrics collected from all running applications.
+
+### Step 01: Add Grafana to the Aspire Orchestrator
+
+Open the Orchestrator project and modify the `AppHost.cs` file to include a Grafana container.
+
+```cs
+// Add Grafana
+builder.AddContainer("grafana", "grafana/grafana:11.2.0")
+    .WithEndpoint(targetPort: 3000, port: 3000, scheme: "http")
+    .WithEnvironment("GF_SECURITY_ADMIN_USER", "admin")
+    .WithEnvironment("GF_SECURITY_ADMIN_PASSWORD", "admin")
+    .WithEnvironment("GF_USERS_ALLOW_SIGN_UP", "false");
+```
+
+Once started, access Grafana at [http://localhost:3000](http://localhost:3000) with credentials:
+
+```
+Username: admin
+Password: admin
+```
+
+Aspire provides a Prometheus-compatible endpoint by default; however, we now need to configure Grafana to locate and access data from Prometheus.
+
+Once Grafana is running, navigate to `Connections` and select `Prometheus`. In the connection settings, enter `http://prometheus:9090`, then click `Save & test` at the bottom of the page.
+
+Next, add your first dashboard:
+Open `Dashboards`, choose `Import`, and in the `dashboard ID` field, enter 19924, then click `Load`. In the final step, select the Prometheus connection you created earlier and click `Import`.
+
+After completing these steps, the dashboard will display various metrics and information. 
+
+Take some time to explore and analyze the data presented.
 
 ---
 
-## Task 04: Verifying Full Observability
+## Task 03: Verifying Full Observability
 
 To validate all integrations, run the Orchestrator:
 
 Check the following:
 
-* **Grafana** → [http://localhost:3000](http://localhost:3000): Application metrics from MainApp and SearchService.
-* **Kibana** → [http://localhost:5601](http://localhost:5601): Centralized logs with full-text search.
-* **Aspire Dashboard** → [http://localhost:18888](http://localhost:18888): Health and topology of all services.
-* **Traces (Grafana/Tempo)** → End-to-end request tracing across both services.
+* **Grafana** → [http://localhost:3000](http://localhost:3000): Application metrics from WebApp.
+* **Aspire Dashboard** → [http://localhost:18888](http://localhost:18888): Health and topology of all services and End-to-end request tracing across both services.
 
 With these configurations, your Aspire environment now provides a complete observability suite:
 
 * **Metrics** collected through Prometheus and Grafana
 * **Traces** via OpenTelemetry
-* **Logs** centralized in Elasticsearch

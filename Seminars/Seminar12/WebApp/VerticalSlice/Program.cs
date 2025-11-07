@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Module.Orders.Infrastructure;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SearchService.Shared;
 using VerticalSlice.Infrastructure;
@@ -49,6 +50,8 @@ builder.Services.AddTransient<ISearchService, VerticalSlice.Services.SearchServi
 
 builder.Host.UseWolverine(opts =>
 {
+    opts.ServiceName = "web-app";
+
     var rabbitConnection = builder.Configuration.GetConnectionString("rabbitmq");
 
     if (string.IsNullOrEmpty(rabbitConnection))
@@ -76,9 +79,11 @@ builder.Logging.AddOpenTelemetry(logging =>
     logging.IncludeScopes = true;
 });
 
-var otel = builder.Services.AddOpenTelemetry()
+builder.Services.AddOpenTelemetry()
     .WithMetrics(m =>
     {
+        m.AddPrometheusExporter();
+
         m.AddAspNetCoreInstrumentation();
         m.AddMeter("Microsoft.AspNetCore.Hosting");
         m.AddMeter("Microsoft.AspNetCore.Server.Kestrel");
@@ -86,9 +91,12 @@ var otel = builder.Services.AddOpenTelemetry()
     })
     .WithTracing(t =>
     {
+        t.AddSource("Wolverine");
+
         t.AddAspNetCoreInstrumentation();
         t.AddHttpClientInstrumentation();
-    });
+    })
+    .ConfigureResource(rb => rb.AddService("web-app"));
 
 builder.Services.Configure<OpenTelemetryLoggerOptions>(x =>
 {
@@ -113,7 +121,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+app.UseWhen(ctx => !ctx.Request.Path.StartsWithSegments("/metrics", StringComparison.OrdinalIgnoreCase),
+    sub => { sub.UseHttpsRedirection(); });
+
 app.UseRouting();
 
 app.UseSession();
@@ -129,5 +139,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();
