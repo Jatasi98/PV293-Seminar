@@ -162,7 +162,7 @@ builder.Host.UseWolverine(opts =>
 });
 ```
 
-## Task 03: Search Projection Model and Consumers
+## Task 03: Search Project: Model and Consumers
 
 ### Step 1: Create MongoDB document
 
