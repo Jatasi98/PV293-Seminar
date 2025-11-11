@@ -378,11 +378,56 @@ Update Program.cs accordingly so that the application and the search service can
 
 **MVC - Program.cs**
 ```cs
+builder.Host.UseWolverine(opts =>
+{
+    opts.UseRabbitMq(new Uri("amqp://guest:guest@localhost:5672"))
+        .AutoProvision()
+        .AutoPurgeOnStartup();
 
+    opts.PublishAllMessages()
+        .ToRabbitQueue("search_service");
+
+    opts.ListenToRabbitQueue("webapp_replies");
+
+    opts.Discovery.IncludeAssembly(typeof(QueryProducts).Assembly);
+
+    opts.Discovery.IncludeAssembly(typeof(Program).Assembly);
+});
 ```
 **SearchService - Program.cs**
 ```cs
+builder.Services.Configure<MongoOptions>(builder.Configuration.GetSection("Mongo"));
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<MongoOptions>>().Value;
+    return new MongoClient(opts.ConnectionString);
+});
 
+builder.Host.UseWolverine(opts =>
+{
+    opts.UseRabbitMq(builder.Configuration["RabbitMq:ConnectionString"] ?? throw new ArgumentNullException("Connection string for RabbitMQ was not found"))
+        .AutoProvision()
+        .AutoPurgeOnStartup();
+
+    opts.ListenToRabbitQueue("search_service");
+
+    opts.Discovery.IncludeAssembly(typeof(QueryProductsHandler).Assembly);
+
+    opts.Discovery.IncludeAssembly(typeof(Program).Assembly);
+});
+
+//...
+
+var client = app.Services.GetRequiredService<IMongoClient>();
+var options = app.Services.GetRequiredService<IOptions<MongoOptions>>().Value;
+var db = client.GetDatabase(options.Database);
+var products = db.GetCollection<MongoProduct>("products");
+
+await products.Indexes.CreateManyAsync(
+[
+    new CreateIndexModel<MongoProduct>(Builders<MongoProduct>.IndexKeys.Ascending(p => p.Name), new CreateIndexOptions { Name = "idx_name" }),
+    new CreateIndexModel<MongoProduct>(Builders<MongoProduct>.IndexKeys.Ascending(p => p.CategoryName), new CreateIndexOptions { Name = "idx_categoryName" })
+]);
 ```
 
 This turns the main app’s search endpoint into a thin proxy that delegates to the Search service over RabbitMQ.
